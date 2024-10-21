@@ -1,0 +1,38 @@
+name: Jira Ticket
+description: A GitHub Action to extract a Jira ticket number associated with a branch name
+
+inputs:
+  OVERRIDE_TICKET:
+    description: The ticket number to override the extracted ticket number with
+    required: false
+
+outputs:
+  TICKET:
+    description: The ticket number extracted from the branch name
+    value: ${{steps.extract.outputs.TICKET}}
+  FOUND:
+    description: Whether a ticket number was found in the branch name
+    value: ${{steps.extract.outputs.FOUND}}
+
+runs:
+  using: composite
+  steps:
+    - id: extract
+      name: Extract Ticket
+      shell: bash
+      run: |
+        TICKET=${{inputs.OVERRIDE_TICKET}}
+        if [[ -n "${TICKET}" ]]; then
+            echo TICKET=${TICKET,,} >> $GITHUB_OUTPUT
+        else
+          BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+          if [[ "${BRANCH}" =~ ((DEV|FIN|WWS|KAS|ONS)-[0-9]{3,4}) ]]; then
+            echo "Ticker number found: ${BASH_REMATCH[1],,}"
+            echo TICKET=${BASH_REMATCH[1],,} >> $GITHUB_OUTPUT
+            echo FOUND=true >> $GITHUB_OUTPUT
+          else
+            echo "" >> $GITHUB_OUTPUT
+            echo FOUND=false >> $GITHUB_OUTPUT
+            exit 0  # Gracefully exit without failure
+          fi
+        fi
